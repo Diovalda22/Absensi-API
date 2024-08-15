@@ -13,7 +13,51 @@ use Illuminate\Support\Facades\Validator;
 
 class PresensiController extends Controller
 {
-    public function absen(Request $request)
+
+    public function getPresensi(Request $request)
+    {
+        $siswa_id = Auth::user()->siswa_id;
+
+        $year = $request->input('year', now()->year);
+        $month = $request->input('month', now()->month);
+
+        if ($year && $month) {
+            $startDate = Carbon::create($year, $month)->startOfMonth();
+            $endDate = Carbon::create($year, $month)->endOfMonth();
+        } else if ($year) {
+            $startDate = Carbon::create($year)->startOfYear();
+            $endDate = Carbon::create($year)->endOfYear();
+        } else {
+            $startDate = Carbon::now()->startOfMonth();
+            $endDate = Carbon::now()->endOfMonth();
+        }
+
+
+        $data = Kehadiran::where('siswa_id', $siswa_id)->whereBetween('tanggal', [$startDate, $endDate])->get();
+        return $this->success($data);
+    }
+
+    public function getIzin()
+    {
+        $siswa_id = Auth::user()->siswa_id;
+        $startDate = now()->startOfMonth();
+        $endDate = now()->endOfMonth();
+
+        $data = Izin::where('siswa_id', $siswa_id)->where('keterangan', 'izin')->whereBetween('tanggal', [$startDate, $endDate])->get();
+        return $this->success($data);
+    }
+
+    public function getSakit()
+    {
+        $siswa_id = Auth::user()->siswa_id;
+        $startDate = now()->startOfMonth();
+        $endDate = now()->endOfMonth();
+
+        $data = Izin::where('siswa_id', $siswa_id)->where('keterangan', 'sakit')->whereBetween('tanggal', [$startDate, $endDate])->get();
+        return $this->success($data);
+    }
+
+    public function absen()
     {
         $siswa_id = Auth::user()->siswa_id;
         $tanggal = Carbon::now()->format('d-m-Y');
@@ -46,16 +90,29 @@ class PresensiController extends Controller
                 return response()->json(['message' => 'Anda sudah absen datang hari ini.'], 422);
             }
         } else {
+            // Tentukan tenggat waktu untuk absen datang
+            $batasWaktu = Carbon::parse('07:00:00', 'Asia/Jakarta');
+
+            // Tentukan keterangan default
+            $keterangan = 'hadir';
+
+            // Cek apakah siswa terlambat
+            if ($currentTime->greaterThanOrEqualTo($batasWaktu)) {
+                $keterangan = 'telat';
+            }
+
             // Jika belum absen, buat data absen baru
             $absen = Kehadiran::create([
                 'siswa_id' => $siswa_id,
                 'tanggal' => $tanggalFormatted,
-                'keterangan' => 'hadir',
+                'keterangan' => $keterangan,
                 'waktu_datang' => $currentTime,
             ]);
+
             return response()->json(['message' => 'Berhasil Absen Datang', 'data' => $absen], 200);
         }
     }
+
 
 
 
