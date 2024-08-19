@@ -18,24 +18,37 @@ class PresensiController extends Controller
     {
         $siswa_id = Auth::user()->siswa_id;
 
-        $year = $request->input('year', now()->year);
-        $month = $request->input('month', now()->month);
+        // Ambil tanggal dari request, atau gunakan default jika tidak ada
+        $date = $request->input('date');
 
-        if ($year && $month) {
-            $startDate = Carbon::create($year, $month)->startOfMonth();
-            $endDate = Carbon::create($year, $month)->endOfMonth();
-        } else if ($year) {
-            $startDate = Carbon::create($year)->startOfYear();
-            $endDate = Carbon::create($year)->endOfYear();
+        if ($date) {
+            $date = Carbon::parse($date)->startOfDay();
+            $data = Kehadiran::where('siswa_id', $siswa_id)
+                ->whereDate('tanggal', $date)
+                ->get();
+            return $this->success($data);
         } else {
-            $startDate = Carbon::now()->startOfMonth();
-            $endDate = Carbon::now()->endOfMonth();
+            $year = $request->input('year', now()->year);
+            $month = $request->input('month', now()->month);
+
+            if ($year && $month) {
+                $startDate = Carbon::create($year, $month)->startOfMonth();
+                $endDate = Carbon::create($year, $month)->endOfMonth();
+            } else if ($year) {
+                $startDate = Carbon::create($year)->startOfYear();
+                $endDate = Carbon::create($year)->endOfYear();
+            } else {
+                $startDate = Carbon::now()->startOfMonth();
+                $endDate = Carbon::now()->endOfMonth();
+            }
+            $data = Kehadiran::where('siswa_id', $siswa_id)
+                ->whereBetween('tanggal', [$startDate, $endDate])
+                ->get();
+
+            return $this->success($data);
         }
-
-
-        $data = Kehadiran::where('siswa_id', $siswa_id)->whereBetween('tanggal', [$startDate, $endDate])->get();
-        return $this->success($data);
     }
+
 
     public function getIzin()
     {
@@ -78,7 +91,7 @@ class PresensiController extends Controller
                     return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 422);
                 } else {
                     // Cek jika waktu sekarang sudah waktunya pulang
-                    $waktu_pulang = Carbon::parse('16:00:00', 'Asia/Jakarta'); // contoh waktu pulang jam 16:00
+                    $waktu_pulang = Carbon::parse('15:00:00', 'Asia/Jakarta'); // contoh waktu pulang jam 16:00
                     if ($currentTime->greaterThanOrEqualTo($waktu_pulang)) {
                         $absen->update(['waktu_pulang' => $currentTime]);
                         return response()->json(['message' => 'Berhasil Absen Pulang', 'data' => $absen], 201);
