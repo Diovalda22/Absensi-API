@@ -36,7 +36,6 @@ class AuthController extends Controller
             'name' => 'required',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:5',
-            'kelas_id' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -48,8 +47,8 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => $request->password,
-            'kelas_id' => $request->kelas_id,
             'siswa_id' => $request->siswa_id,
+            'guru_id' => $request->guru_id,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;

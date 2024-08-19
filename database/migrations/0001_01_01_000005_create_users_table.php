@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('siswa_id')->nullable();
-            $table->unsignedBigInteger('kelas_id');
-            $table->foreign('kelas_id')->references('id')->on('kelas')->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreign('siswa_id')->references('id')->on('siswa')->cascadeOnDelete()->cascadeOnUpdate();
+            $table->unsignedBigInteger('guru_id')->nullable();
+            $table->foreign('guru_id')->references('id')->on('guru')->cascadeOnDelete()->cascadeOnUpdate();
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();

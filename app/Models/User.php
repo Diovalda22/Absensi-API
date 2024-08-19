@@ -19,7 +19,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'siswa_id',
-        'kelas_id',
+        'guru_id',
         'name',
         'email',
         'password',
@@ -27,9 +27,9 @@ class User extends Authenticatable
 
     protected $with = ['siswa'];
 
-    public function kelas()
+    public function guru()
     {
-        return $this->belongsTo(Kelas::class, 'kelas_id');
+        return $this->belongsTo(Guru::class, 'guru_id');
     }
     public function siswa()
     {

@@ -34,6 +34,8 @@ class SiswaController extends Controller
             'NISN' => 'required',
             'nama' => 'required',
             'tanggal_lahir' => 'required',
+            'jenis_kelamin' => 'required',
+            'noHP' => 'required',
             'kelas_id' => 'required',
         ]);
 
@@ -45,6 +47,8 @@ class SiswaController extends Controller
             'NISN' => $request->nisn,
             'nama' => $request->nama,
             'tanggal_lahir' => $request->tanggal_lahir,
+            'jenis_kelamin' => $request->jenis_kelamin,
+            'noHP' => $request->noHP,
             'kelas_id' => $request->kelas_id,
         ]);
         return response()->json(['data' => $siswa]);

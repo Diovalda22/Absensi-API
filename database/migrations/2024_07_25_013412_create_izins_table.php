@@ -18,6 +18,7 @@ return new class extends Migration
             $table->date('tanggal');
             $table->enum('keterangan', ['sakit', 'izin']);
             $table->string('deskripsi');
+            $table->enum('status', ['pending', 'approve'])->default('pending');
 
             $table->foreign('siswa_id')->references('id')->on('siswa')->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreign('image_id')->references('id')->on('images')->cascadeOnDelete()->cascadeOnUpdate();

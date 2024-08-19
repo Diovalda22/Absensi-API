@@ -116,12 +116,12 @@ class PresensiController extends Controller
 
 
 
-    public function Izin(Request $request)
+    public function reqIzin(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'deskripsi' => 'required',
-            'keterangan' => 'required',
+            'keterangan' => 'required|in:sakit,izin',
             'siswa_id' => 'required',
         ]);
         if ($validator->fails()) {
@@ -145,12 +145,13 @@ class PresensiController extends Controller
             'tanggal' => $tanggal,
             'keterangan' => $request->keterangan,
             'deskripsi' => $request->deskripsi,
+            'status' => 'pending'
         ]);
 
         $kehadiran = Kehadiran::create([
             'siswa_id' => $siswa_id,
             'tanggal' => $tanggal,
-            'keterangan' => 'izin',
+            'keterangan' => $request->keterangan,
             'waktu_datang' => null,
             'waktu_pulang' => null,
         ]);
@@ -158,14 +159,29 @@ class PresensiController extends Controller
         return response()->json(['message' => 'Siswa Berhasil Izin', 'data' => $izin], 200);
     }
 
+    public function accIzin($id)
+    {
+        $approve = Izin::where('id', $id)->where('status', 'pending')->first();
+        if (!$approve) {
+            $approve->update(['status' => 'approve']);
+            return response()->json(['message' => 'Berhasil approve izin siswa' . $approve->siswa->nama], 200);
+        } else if ($approve->status === 'approve') {
+            return response()->json(['message' => 'izin siswa sudah approve'], 401);
+        } else {
+            return response()->json(['message' => 'Data tidak ditemukan'], 404);
+        }
+    }
+
     public function accDispen($id)
     {
-        $approve = Dispen::where('id', $id)->where('keterangan', 'pending')->first();
+        $approve = Dispen::where('id', $id)->where('status', 'pending')->first();
         if ($approve) {
-            $approve->update(['keterangan' => 'approve']);
+            $approve->update(['status' => 'approve']);
             return response()->json(['message' => 'Berhasil approve dispen siswa ' . $approve->siswa->nama], 200);
+        } else if ($approve->status === 'approve') {
+            return response()->json(['message' => 'izin siswa sudah approve'], 401);
         } else {
-            return response()->json(['message' => 'Data tidak ditemukan atau sudah diapprove'], 404);
+            return response()->json(['message' => 'Data tidak ditemukan'], 404);
         }
     }
 
