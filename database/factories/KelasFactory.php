@@ -1,23 +1,23 @@
-<?php
+ <?php
 
-namespace Database\Factories;
+    namespace Database\Factories;
 
-use Illuminate\Database\Eloquent\Factories\Factory;
+    use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Kelas>
- */
-class KelasFactory extends Factory
-{
     /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
+     * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Kelas>
      */
-    public function definition(): array
+    class KelasFactory extends Factory
     {
-        return [
-            //
-        ];
+        /**
+         * Define the model's default state.
+         *
+         * @return array<string, mixed>
+         */
+        public function definition(): array
+        {
+            return [
+                'nama' => $this->faker->word, // Nama kelas
+            ];
+        }
     }
-}

@@ -31,7 +31,7 @@ class SiswaController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'NISN' => 'required',
+            'nisn' => 'required',
             'nama' => 'required',
             'tanggal_lahir' => 'required',
             'jenis_kelamin' => 'required',
@@ -44,7 +44,7 @@ class SiswaController extends Controller
         }
 
         $siswa = Siswa::create([
-            'NISN' => $request->nisn,
+            'nisn' => $request->nisn,
             'nama' => $request->nama,
             'tanggal_lahir' => $request->tanggal_lahir,
             'jenis_kelamin' => $request->jenis_kelamin,
