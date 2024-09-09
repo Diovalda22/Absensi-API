@@ -31,6 +31,14 @@ class UserSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'siswa_id' => null,
+                'name' => 'Anas Fauzi',
+                'email' => 'anas@gmail.com',
+                'password' => Hash::make('121212'),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
     }
 }

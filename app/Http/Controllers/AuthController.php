@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -43,7 +44,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'identifier' => 'required|numeric', // NISN atau NIP
             'password' => 'required|min:5',
         ]);
 
@@ -51,15 +52,22 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid field', 'errors' => $validator->errors()]);
         }
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json(['message' => 'Email or password incorrect'], 401);
+        $user = User::whereHas('siswa', function ($query) use ($request) {
+            $query->where('nisn', $request->identifier);
+        })->orWhereHas('guru', function ($query) use ($request) {
+            $query->where('nip', $request->identifier);
+        })->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'NISN/NIP or password incorrect'], 401);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json(['data' => $user, 'token' => $token], 200);
     }
+
+
 
     public function logout(Request $request)
     {

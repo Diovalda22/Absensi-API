@@ -246,8 +246,9 @@ class PresensiController extends Controller
     public function checkAbsen()
     {
         $siswa_id = Auth::user()->siswa_id;
-        $tanggal = Carbon::now()->format('Y-m-d');
-        $absen = Kehadiran::where('siswa_id', $siswa_id)->where('tanggal', $tanggal)->first();
+        $tanggal = Carbon::now()->startOfDay()->format('Y-m-d');
+        // var_dump($tanggal);
+        $absen = Kehadiran::where('siswa_id', $siswa_id)->whereDate('tanggal', "=", $tanggal)->first();
 
         // Jika sudah ada absen datang
         if ($absen) {

@@ -16,7 +16,7 @@ class SiswaSeeder extends Seeder
         DB::table('siswa')->insert([
             [
                 'nisn' => 123456789,
-                'nama' => 'Ferren Diova;da',
+                'nama' => 'Ferren Diovalda',
                 'tanggal_lahir' => '2007-02-02',
                 'jenis_kelamin' => 'laki-laki',
                 'noHP' => '081234567890',
