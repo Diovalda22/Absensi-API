@@ -9,7 +9,7 @@ class Dispen extends Model
 {
     use HasFactory;
     protected $table = 'dispen';
-    protected $fillable = ['siswa_id', 'image_id', 'deskripsi', 'tanggal', 'status'];
+    protected $fillable = ['siswa_id', 'image_id', 'deskripsi', 'tanggal', 'status', 'keterangan'];
     protected $with = ['siswa', 'image'];
 
     public $timestamps = false;

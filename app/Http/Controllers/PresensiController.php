@@ -50,6 +50,27 @@ class PresensiController extends Controller
     }
 
 
+    public function getAbsen()
+    {
+        $startDate = now()->startOfMonth();
+        $endDate = now()->endOfMonth();
+
+        // Ambil data izin dan dispen berdasarkan rentang tanggal dan status
+        $dataIzin = Izin::where('status', 'pending')
+            ->whereBetween('tanggal', [$startDate, $endDate])
+            ->get();
+
+        $dataDispen = Dispen::where('status', 'pending')
+            ->whereBetween('tanggal', [$startDate, $endDate])
+            ->get();
+
+        // Gabungkan data izin dan dispen
+        $dataAbsen = $dataIzin->merge($dataDispen);
+
+        return $this->success($dataAbsen);
+    }
+
+
     public function getIzin()
     {
         $siswa_id = Auth::user()->siswa_id;
@@ -70,7 +91,7 @@ class PresensiController extends Controller
         return $this->success($data);
     }
 
-    public function absen()
+    public function presensi()
     {
         $siswa_id = Auth::user()->siswa_id;
         $currentTime = Carbon::now('Asia/Jakarta');
@@ -183,9 +204,9 @@ class PresensiController extends Controller
     public function accIzin($id)
     {
         $approve = Izin::where('id', $id)->where('status', 'pending')->first();
-        if (!$approve) {
+        if ($approve) {
             $approve->update(['status' => 'approve']);
-            return response()->json(['message' => 'Berhasil approve izin siswa' . $approve->siswa->nama], 200);
+            return response()->json(['message' => 'Berhasil approve izin siswa ' . $approve->siswa->nama], 200);
         } else if ($approve->status === 'approve') {
             return response()->json(['message' => 'izin siswa sudah approve'], 401);
         } else {

@@ -21,14 +21,15 @@ Route::prefix('auth')->group(function () {
 
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('absen', [PresensiController::class, 'getPresensi']);
+    Route::get('presensi', [PresensiController::class, 'getPresensi']);
     Route::get('izin', [PresensiController::class, 'getIzin']);
     Route::get('sakit', [PresensiController::class, 'getSakit']);
+    Route::get('absen', [PresensiController::class, 'getAbsen']);
     Route::get('check', [PresensiController::class, 'checkAbsen']);
 
-    Route::post('absen', [PresensiController::class, 'absen']);
+    Route::post('presensi', [PresensiController::class, 'presensi']);
     Route::post('izin', [PresensiController::class, 'reqIzin']);
-    Route::post('izin/{id}', [PresensiController::class, 'accIzin'])->middleware('IsAdmin');
+    Route::put('izin/{id}', [PresensiController::class, 'accIzin'])->middleware('IsAdmin');
     Route::post('dispen', [PresensiController::class, 'reqDispen']);
     Route::put('dispen/{id}', [PresensiController::class, 'accDispen'])->middleware('IsAdmin');
     Route::resource('siswa', SiswaController::class)->middleware('IsAdmin');
