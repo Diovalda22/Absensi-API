@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Dispen;
+use App\Models\Guru;
 use App\Models\Image;
 use App\Models\Izin;
 use App\Models\Kehadiran;
+use App\Models\Siswa;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +15,30 @@ use Illuminate\Support\Facades\Validator;
 
 class PresensiController extends Controller
 {
+    public function cekKehadiran()
+    {
+        $user = Auth::user();
+        $guru = Guru::where('id', $user->guru_id)->first();
+
+        if (!$guru) {
+            return response()->json(['message' => 'Guru tidak ditemukan'], 404);
+        }
+
+        $kelasId = $guru->kelas_id;
+        $siswa = Siswa::where('kelas_id', $kelasId)->get();
+
+        if ($siswa->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada siswa di kelas ini'], 404);
+        }
+
+        $tanggal = Carbon::now()->format('Y-m-d');
+
+        $kehadiran = Kehadiran::where('tanggal', $tanggal)
+            ->whereIn('siswa_id', $siswa->pluck('id'))
+            ->get();
+
+        return response()->json(['data' => $kehadiran]);
+    }
 
     public function getPresensi(Request $request)
     {

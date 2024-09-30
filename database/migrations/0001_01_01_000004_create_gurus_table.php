@@ -19,7 +19,6 @@ return new class extends Migration
             $table->enum('jenis_kelamin', ['laki-laki', 'perempuan']);
             $table->date('tanggal_lahir');
             $table->unsignedBigInteger('kelas_id');
-
             $table->foreign('kelas_id')->references('id')->on('kelas')->cascadeOnDelete()->cascadeOnUpdate();
         });
     }

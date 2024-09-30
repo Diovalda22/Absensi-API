@@ -26,6 +26,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('sakit', [PresensiController::class, 'getSakit']);
     Route::get('absen', [PresensiController::class, 'getAbsen']);
     Route::get('check', [PresensiController::class, 'checkAbsen']);
+    Route::get('cek-kehadiran', [PresensiController::class, 'cekKehadiran']);
 
     Route::post('presensi', [PresensiController::class, 'presensi']);
     Route::post('izin', [PresensiController::class, 'reqIzin']);
