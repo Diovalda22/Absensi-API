@@ -21,7 +21,9 @@ Route::prefix('auth')->group(function () {
 
 
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('presensi', [PresensiController::class, 'getPresensi']);
+    Route::get('presensi', [PresensiController::class, 'getPresensiSiswa']);
+    Route::get('presensi/guru', [PresensiController::class, 'getPresensiGuru']);
+
     Route::get('izin', [PresensiController::class, 'getIzin']);
     Route::get('sakit', [PresensiController::class, 'getSakit']);
     Route::get('absen', [PresensiController::class, 'getAbsen']);

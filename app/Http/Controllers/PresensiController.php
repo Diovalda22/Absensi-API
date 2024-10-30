@@ -61,7 +61,7 @@ class PresensiController extends Controller
     }
 
 
-    public function getPresensi(Request $request)
+    public function getPresensiSiswa(Request $request)
     {
         $siswa_id = Auth::user()->siswa_id;
 
@@ -95,6 +95,55 @@ class PresensiController extends Controller
             return $this->success($data);
         }
     }
+
+    public function getPresensiGuru(Request $request)
+    {
+        $guru_id = Auth::user()->guru_id;
+        $kelas_id = Guru::where('id', $guru_id)->value('kelas_id');
+        $siswa_id = Siswa::where('kelas_id', $kelas_id)->value('id');
+        $date = $request->input('date');
+        $range = $request->input('range'); // 'week', 'month', or 'semester'
+
+        if ($date) {
+            $date = Carbon::parse($date)->startOfDay();
+            $data = Kehadiran::where('siswa_id', $siswa_id)
+                ->whereDate('tanggal', $date)
+                ->get();
+            return $this->success($data);
+        } else {
+            $year = $request->input('year', now()->year);
+            $month = $request->input('month', now()->month);
+
+            if ($range === 'week') {
+                // Jika filter berdasarkan 1 minggu
+                $startDate = Carbon::now()->startOfWeek();
+                $endDate = Carbon::now()->endOfWeek();
+            } elseif ($range === 'semester') {
+                // Jika filter berdasarkan 6 bulan atau 1 semester
+                $startDate = Carbon::now()->subMonths(6)->startOfMonth();
+                $endDate = Carbon::now()->endOfMonth();
+            } elseif ($range === 'month') {
+                // Jika filter berdasarkan 1 bulan
+                $startDate = Carbon::now()->startOfMonth();
+                $endDate = Carbon::now()->endOfMonth();
+            } elseif ($month) {
+                // Jika `month` dan `year` diberikan, ambil awal dan akhir bulan tersebut
+                $startDate = Carbon::create($year, $month)->startOfMonth();
+                $endDate = Carbon::create($year, $month)->endOfMonth();
+            } else {
+                // Jika hanya `year` diberikan, ambil awal dan akhir tahun
+                $startDate = Carbon::create($year)->startOfYear();
+                $endDate = Carbon::create($year)->endOfYear();
+            }
+
+            $data = Kehadiran::where('siswa_id', $siswa_id)
+                ->whereBetween('tanggal', [$startDate, $endDate])
+                ->get();
+
+            return $this->success($data);
+        }
+    }
+
 
 
     public function getAbsen()
