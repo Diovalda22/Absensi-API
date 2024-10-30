@@ -33,12 +33,33 @@ class PresensiController extends Controller
 
         $tanggal = Carbon::now()->format('Y-m-d');
 
+        // Ambil data kehadiran berdasarkan siswa di kelas tersebut dan tanggal saat ini
         $kehadiran = Kehadiran::where('tanggal', $tanggal)
             ->whereIn('siswa_id', $siswa->pluck('id'))
             ->get();
 
-        return response()->json(['data' => $kehadiran]);
+        $total_siswa = 36; // Total siswa di kelas
+
+        // Hitung jumlah berdasarkan keterangan
+        $hadir = $kehadiran->where('keterangan', 'hadir')->count();
+        $telat = $kehadiran->where('keterangan', 'telat')->count();
+        $alpha = $kehadiran->where('keterangan', 'alpha')->count();
+        $izin = $kehadiran->where('keterangan', 'izin')->count();
+        $dispen = $kehadiran->where('keterangan', 'dispen')->count();
+        $sakit = $kehadiran->where('keterangan', 'sakit')->count();
+
+        return response()->json([
+            'total_siswa' => $total_siswa,
+            'hadir' => $hadir,
+            'telat' => $telat,
+            'alpha' => $alpha,
+            'izin' => $izin,
+            'dispen' => $dispen,
+            'sakit' => $sakit,
+            'data' => $kehadiran
+        ]);
     }
+
 
     public function getPresensi(Request $request)
     {
@@ -174,15 +195,11 @@ class PresensiController extends Controller
         }
     }
 
-
-
-
-
     public function reqIzin(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'deskripsi' => 'required',
+            'image'      => 'required|image|mimes: jpeg,png,jpg,gif,svg|max: 2048',
+            'deskripsi'  => 'required',
             'keterangan' => 'required|in:sakit,izin',
         ]);
         if ($validator->fails()) {
@@ -208,18 +225,18 @@ class PresensiController extends Controller
         ]);
 
         $izin = Izin::create([
-            'siswa_id' => $siswa_id,
-            'image_id' => $imageUpload->id,
-            'tanggal' => $tanggal,
+            'siswa_id'   => $siswa_id,
+            'image_id'   => $imageUpload->id,
+            'tanggal'    => $tanggal,
             'keterangan' => $request->keterangan,
-            'deskripsi' => $request->deskripsi,
-            'status' => 'pending'
+            'deskripsi'  => $request->deskripsi,
+            'status'     => 'pending'
         ]);
 
         $kehadiran = Kehadiran::create([
-            'siswa_id' => $siswa_id,
-            'tanggal' => $tanggal,
-            'keterangan' => $request->keterangan,
+            'siswa_id'     => $siswa_id,
+            'tanggal'      => $tanggal,
+            'keterangan'   => $request->keterangan,
             'waktu_datang' => null,
             'waktu_pulang' => null,
         ]);
@@ -300,7 +317,7 @@ class PresensiController extends Controller
         // Jika sudah ada absen datang
         if ($absen) {
             // Cek apakah siswa sudah absen pulang
-            if ($absen->waktu_pulang !== null) {
+            if ($absen->waktu_pulang !== null || $absen->keterangan === 'izin' || $absen->keterangan === 'dispen') {
                 return response()->json(['message' => 'Anda sudah absen pulang hari ini', 'status' => 'pulang'], 201);
             } else {
                 return response()->json(['message' => 'Anda sudah absen datang hari ini', 'status' => 'datang'], 200);
