@@ -38,7 +38,25 @@ class PresensiController extends Controller
             ->whereIn('siswa_id', $siswa->pluck('id'))
             ->get();
 
-        $total_siswa = 36; // Total siswa di kelas
+        $total_siswa = $siswa->count();
+
+        // Cari siswa yang belum memiliki catatan kehadiran hari ini dan tandai sebagai alpha
+        $siswaTanpaKehadiran = $siswa->whereNotIn('id', $kehadiran->pluck('siswa_id'));
+
+        foreach ($siswaTanpaKehadiran as $siswa) {
+            Kehadiran::create([
+                'siswa_id' => $siswa->id,
+                'tanggal' => $tanggal,
+                'keterangan' => 'alpha',
+                'waktu_datang' => null,
+                'waktu_pulang' => null,
+            ]);
+        }
+
+        // Refresh data kehadiran setelah memasukkan siswa alpha
+        $kehadiran = Kehadiran::where('tanggal', $tanggal)
+            ->whereIn('siswa_id', $siswa->pluck('id'))
+            ->get();
 
         // Hitung jumlah berdasarkan keterangan
         $hadir = $kehadiran->where('keterangan', 'hadir')->count();
@@ -59,6 +77,7 @@ class PresensiController extends Controller
             'data' => $kehadiran
         ]);
     }
+
 
 
     public function getPresensiSiswa(Request $request)
@@ -144,8 +163,6 @@ class PresensiController extends Controller
         }
     }
 
-
-
     public function getAbsen()
     {
         $startDate = now()->startOfMonth();
@@ -195,6 +212,30 @@ class PresensiController extends Controller
         // Format tanggal sekarang untuk keperluan query
         $tanggalFormatted = $currentTime->format('Y-m-d');
 
+        // Tentukan waktu pulang, misalnya pukul 15:00:00
+        $waktuPulang = Carbon::parse('15:00:00', 'Asia/Jakarta');
+
+        // Jika sudah waktunya pulang, tetapkan siswa yang belum hadir sebagai alpha
+        if ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
+            // Dapatkan semua `siswa_id` dari tabel Siswa yang belum hadir pada hari ini
+            $siswaBelumAbsen = Siswa::whereNotIn('id', function ($query) use ($tanggalFormatted) {
+                $query->select('siswa_id')
+                    ->from('kehadiran')
+                    ->where('tanggal', $tanggalFormatted);
+            })->get();
+
+            // Tambahkan data `alpha` untuk setiap siswa yang belum hadir
+            foreach ($siswaBelumAbsen as $siswa) {
+                Kehadiran::create([
+                    'siswa_id' => $siswa->id,
+                    'tanggal' => $tanggalFormatted,
+                    'keterangan' => 'alpha',
+                    'waktu_datang' => null,
+                    'waktu_pulang' => null,
+                ]);
+            }
+        }
+
         // Cek apakah siswa sudah absen pada hari ini
         $absen = Kehadiran::where('siswa_id', $siswa_id)
             ->where('tanggal', $tanggalFormatted)
@@ -207,32 +248,26 @@ class PresensiController extends Controller
                     // Jika sudah absen pulang
                     return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 422);
                 } else {
-                    // Tentukan waktu pulang, misalnya pukul 15:00:00
-                    $waktu_pulang = Carbon::parse('15:00:00', 'Asia/Jakarta');
-                    if ($currentTime->greaterThanOrEqualTo($waktu_pulang)) {
-                        // Jika sudah waktunya pulang, update absen dengan waktu_pulang
+                    // Jika belum absen pulang
+                    if ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
                         $absen->update(['waktu_pulang' => $currentTime]);
                         return response()->json(['status' => 'pulang', 'message' => 'Berhasil Absen Pulang', 'data' => $absen], 201);
                     } else {
-                        // Jika belum waktunya pulang
                         return response()->json(['message' => 'Belum waktunya pulang.'], 422);
                     }
                 }
             } else {
-                // Jika sudah absen datang, tapi absen pulang belum dilakukan
                 return response()->json(['message' => 'Anda sudah absen datang hari ini.'], 422);
             }
         } else {
             // Batas waktu absen datang, misalnya pukul 07:00:00
             $batasWaktu = Carbon::parse('07:00:00', 'Asia/Jakarta');
-            $keterangan = 'hadir'; // Default keterangan
+            $keterangan = 'hadir';
 
-            // Cek apakah siswa terlambat
             if ($currentTime->greaterThanOrEqualTo($batasWaktu)) {
                 $keterangan = 'telat';
             }
 
-            // Buat data absen baru
             $absen = Kehadiran::create([
                 'siswa_id' => $siswa_id,
                 'tanggal' => $tanggalFormatted,
@@ -243,6 +278,7 @@ class PresensiController extends Controller
             return response()->json(['status' => 'datang', 'message' => 'Berhasil Absen Datang', 'data' => $absen], 200);
         }
     }
+
 
     public function reqIzin(Request $request)
     {
