@@ -32,6 +32,7 @@ class PresensiController extends Controller
         }
 
         $tanggal = Carbon::now()->format('Y-m-d');
+        $waktuSekarang = Carbon::now();
 
         // Ambil data kehadiran berdasarkan siswa di kelas tersebut dan tanggal saat ini
         $kehadiran = Kehadiran::where('tanggal', $tanggal)
@@ -40,23 +41,37 @@ class PresensiController extends Controller
 
         $total_siswa = $siswa->count();
 
-        // Cari siswa yang belum memiliki catatan kehadiran hari ini dan tandai sebagai alpha
-        $siswaTanpaKehadiran = $siswa->whereNotIn('id', $kehadiran->pluck('siswa_id'));
+        // Cek jika waktu sekarang melewati jam 15:00
+        if ($waktuSekarang->hour >= 15) {
+            // Cari siswa yang belum memiliki catatan kehadiran hari ini dan tandai sebagai alpha
+            $siswaTanpaKehadiran = $siswa->whereNotIn('id', $kehadiran->pluck('siswa_id'));
 
-        foreach ($siswaTanpaKehadiran as $siswa) {
-            Kehadiran::create([
-                'siswa_id' => $siswa->id,
-                'tanggal' => $tanggal,
-                'keterangan' => 'alpha',
-                'waktu_datang' => null,
-                'waktu_pulang' => null,
-            ]);
+            foreach ($siswaTanpaKehadiran as $siswa) {
+                Kehadiran::create([
+                    'siswa_id' => $siswa->id,
+                    'tanggal' => $tanggal,
+                    'keterangan' => 'alpha',
+                    'waktu_datang' => null,
+                    'waktu_pulang' => null,
+                ]);
+            }
+
+            // Refresh data kehadiran setelah memasukkan siswa alpha
+            $kehadiran = Kehadiran::where('tanggal', $tanggal)
+                ->whereIn('siswa_id', $siswa->pluck('id'))
+                ->get();
         }
 
-        // Refresh data kehadiran setelah memasukkan siswa alpha
-        $kehadiran = Kehadiran::where('tanggal', $tanggal)
-            ->whereIn('siswa_id', $siswa->pluck('id'))
-            ->get();
+        // Update kehadiran menjadi alpha jika waktu_datang dan waktu_pulang null, dan keterangan selain izin atau dispen
+        foreach ($kehadiran as $data) {
+            if (
+                is_null($data->waktu_datang) && is_null($data->waktu_pulang) &&
+                !in_array($data->keterangan, ['izin', 'dispen', 'sakit'])
+            ) {
+                $data->keterangan = 'alpha';
+                $data->save();
+            }
+        }
 
         // Hitung jumlah berdasarkan keterangan
         $hadir = $kehadiran->where('keterangan', 'hadir')->count();
@@ -77,6 +92,7 @@ class PresensiController extends Controller
             'data' => $kehadiran
         ]);
     }
+
 
 
 
