@@ -220,27 +220,59 @@ class PresensiController extends Controller
         return $this->success($data);
     }
 
-    public function presensi()
+    public function presensi(Request $request)
     {
-        $siswa_id = Auth::user()->siswa_id;
         $currentTime = Carbon::now('Asia/Jakarta');
-
-        // Format tanggal sekarang untuk keperluan query
         $tanggalFormatted = $currentTime->format('Y-m-d');
+        $waktuPulang = Carbon::parse('10:00:00', 'Asia/Jakarta');
+        $batasWaktuDatang = Carbon::parse('07:00:00', 'Asia/Jakarta');
 
-        // Tentukan waktu pulang, misalnya pukul 15:00:00
-        $waktuPulang = Carbon::parse('15:00:00', 'Asia/Jakarta');
+        // Cek apakah ada input RFID, gunakan untuk mencari siswa
+        if ($request->has('rfid')) {
+            $siswa = Siswa::where('rfid_code', $request->rfid)->first();
+            if (!$siswa) {
+                return response()->json(['message' => 'RFID tidak valid'], 404);
+            }
+            $siswa_id = $siswa->id;
+        } else {
+            // Jika tidak ada RFID, gunakan ID dari akun yang login
+            $siswa_id = Auth::user()->siswa_id;
+        }
 
-        // Jika sudah waktunya pulang, tetapkan siswa yang belum hadir sebagai alpha
+        // Periksa apakah siswa sudah melakukan presensi hari ini
+        $absen = Kehadiran::where('siswa_id', $siswa_id)
+            ->where('tanggal', $tanggalFormatted)
+            ->first();
+
+        if ($absen) {
+            if ($absen->waktu_pulang) {
+                return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 422);
+            } elseif ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
+                $absen->update(['waktu_pulang' => $currentTime]);
+                return response()->json(['status' => 'pulang', 'message' => 'Berhasil Absen  Pulang', 'data' => $absen], 201);
+            } else {
+                return response()->json(['message' => 'Belum waktunya  pulang.'], 422);
+            }
+        } else {
+            // Presensi datang jika belum dilakukan
+            $keterangan = $currentTime->greaterThanOrEqualTo($batasWaktuDatang) ? 'telat' : 'hadir';
+            $absen = Kehadiran::create([
+                'siswa_id' => $siswa_id,
+                'tanggal' => $tanggalFormatted,
+                'keterangan' => $keterangan,
+                'waktu_datang' => $currentTime,
+            ]);
+            return response()->json(['status' => 'datang', 'message' => 'Berhasil Absen  Datang', 'data' => $absen], 200);
+        }
+
+        // Setelah jam pulang, tetapkan siswa yang belum absen sebagai alpha
         if ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
-            // Dapatkan semua `siswa_id` dari tabel Siswa yang belum hadir pada hari ini
             $siswaBelumAbsen = Siswa::whereNotIn('id', function ($query) use ($tanggalFormatted) {
                 $query->select('siswa_id')
                     ->from('kehadiran')
                     ->where('tanggal', $tanggalFormatted);
             })->get();
 
-            // Tambahkan data `alpha` untuk setiap siswa yang belum hadir
             foreach ($siswaBelumAbsen as $siswa) {
                 Kehadiran::create([
                     'siswa_id' => $siswa->id,
@@ -251,50 +283,7 @@ class PresensiController extends Controller
                 ]);
             }
         }
-
-        // Cek apakah siswa sudah absen pada hari ini
-        $absen = Kehadiran::where('siswa_id', $siswa_id)
-            ->where('tanggal', $tanggalFormatted)
-            ->first();
-
-        if ($absen) {
-            // Jika sudah absen datang, cek apakah siswa sudah absen pulang
-            if ($absen->waktu_datang !== null) {
-                if ($absen->waktu_pulang) {
-                    // Jika sudah absen pulang
-                    return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 422);
-                } else {
-                    // Jika belum absen pulang
-                    if ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
-                        $absen->update(['waktu_pulang' => $currentTime]);
-                        return response()->json(['status' => 'pulang', 'message' => 'Berhasil Absen Pulang', 'data' => $absen], 201);
-                    } else {
-                        return response()->json(['message' => 'Belum waktunya pulang.'], 422);
-                    }
-                }
-            } else {
-                return response()->json(['message' => 'Anda sudah absen datang hari ini.'], 422);
-            }
-        } else {
-            // Batas waktu absen datang, misalnya pukul 07:00:00
-            $batasWaktu = Carbon::parse('07:00:00', 'Asia/Jakarta');
-            $keterangan = 'hadir';
-
-            if ($currentTime->greaterThanOrEqualTo($batasWaktu)) {
-                $keterangan = 'telat';
-            }
-
-            $absen = Kehadiran::create([
-                'siswa_id' => $siswa_id,
-                'tanggal' => $tanggalFormatted,
-                'keterangan' => $keterangan,
-                'waktu_datang' => $currentTime,
-            ]);
-
-            return response()->json(['status' => 'datang', 'message' => 'Berhasil Absen Datang', 'data' => $absen], 200);
-        }
     }
-
 
     public function reqIzin(Request $request)
     {

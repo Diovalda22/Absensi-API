@@ -18,6 +18,7 @@ return new class extends Migration
             $table->date('tanggal_lahir');
             $table->enum('jenis_kelamin', ['laki-laki', 'perempuan']);
             $table->string('noHP');
+            $table->string('rfid_code');
             $table->unsignedBigInteger('kelas_id');
 
             $table->foreign('kelas_id')->references('id')->on('kelas')->cascadeOnDelete()->cascadeOnUpdate();

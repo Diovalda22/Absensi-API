@@ -37,6 +37,7 @@ class SiswaController extends Controller
             'jenis_kelamin' => 'required',
             'noHP' => 'required',
             'kelas_id' => 'required',
+            'rfid_code' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -50,6 +51,7 @@ class SiswaController extends Controller
             'jenis_kelamin' => $request->jenis_kelamin,
             'noHP' => $request->noHP,
             'kelas_id' => $request->kelas_id,
+            'rfid_code' => $request->rfid_code,
         ]);
         return response()->json(['data' => $siswa]);
     }

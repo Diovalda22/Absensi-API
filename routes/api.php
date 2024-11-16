@@ -30,10 +30,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('check', [PresensiController::class, 'checkAbsen']);
     Route::get('cek-kehadiran', [PresensiController::class, 'cekKehadiran']);
 
-    Route::post('presensi', [PresensiController::class, 'presensi']);
     Route::post('izin', [PresensiController::class, 'reqIzin']);
     Route::put('izin/{id}', [PresensiController::class, 'accIzin'])->middleware('IsAdmin');
     Route::post('dispen', [PresensiController::class, 'reqDispen']);
     Route::put('dispen/{id}', [PresensiController::class, 'accDispen'])->middleware('IsAdmin');
-    Route::resource('siswa', SiswaController::class)->middleware('IsAdmin');
+    Route::post('presensi', [PresensiController::class, 'presensi']);
 });
+
+Route::post('presensi-rfid', [PresensiController::class, 'presensi']);
+Route::resource('siswa', SiswaController::class);
