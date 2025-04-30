@@ -14,31 +14,31 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('users')->insert([
-            [
-                'siswa_id' => 1,
-                'name' => 'Ferren Diovalda',
-                'email' => 'ferrenxx@gmail.com',
-                'password' => Hash::make('121212'),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'siswa_id' => 2,
-                'name' => 'Anggun Mutiara',
-                'email' => 'taira123@gmail.com',
-                'password' => Hash::make('121212'),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'siswa_id' => null,
-                'name' => 'Anas Fauzi',
-                'email' => 'anas@gmail.com',
-                'password' => Hash::make('121212'),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        // DB::table('users')->insert([
+        //     [
+        //         'siswa_id' => 1,
+        //         'name' => 'Ferren Diovalda',
+        //         'email' => 'ferrenxx@gmail.com',
+        //         'password' => Hash::make('121212'),
+        //         'created_at' => now(),
+        //         'updated_at' => now(),
+        //     ],
+        //     [
+        //         'siswa_id' => 2,
+        //         'name' => 'Anggun Mutiara',
+        //         'email' => 'taira123@gmail.com',
+        //         'password' => Hash::make('121212'),
+        //         'created_at' => now(),
+        //         'updated_at' => now(),
+        //     ],
+        //     [
+        //         'siswa_id' => null,
+        //         'name' => 'Anas Fauzi',
+        //         'email' => 'anas@gmail.com',
+        //         'password' => Hash::make('121212'),
+        //         'created_at' => now(),
+        //         'updated_at' => now(),
+        //     ],
+        // ]);
     }
 }
