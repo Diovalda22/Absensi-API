@@ -16,9 +16,9 @@ return new class extends Migration
             $table->unsignedBigInteger('siswa_id');
             $table->unsignedBigInteger('image_id');
             $table->date('tanggal');
-            $table->enum('keterangan', ['sakit', 'izin']);
-            $table->string('deskripsi');
-            $table->enum('status', ['pending', 'approve'])->default('pending');
+            $table->enum('jenis_izin', ['sakit', 'izin']);
+            $table->string('deskripsi')->nullable;
+            $table->enum('status', ['pending', 'approve', 'rejected'])->default('pending');
 
             $table->foreign('siswa_id')->references('id')->on('siswa')->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreign('image_id')->references('id')->on('images')->cascadeOnDelete()->cascadeOnUpdate();

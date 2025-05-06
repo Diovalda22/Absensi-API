@@ -35,7 +35,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('dispen', [PresensiController::class, 'reqDispen']);
     Route::put('dispen/{id}', [PresensiController::class, 'accDispen'])->middleware('IsAdmin');
     Route::post('presensi', [PresensiController::class, 'presensi']);
+    Route::resource('siswa', SiswaController::class)->middleware('IsAdmin');
 });
 
 Route::post('presensi-rfid', [PresensiController::class, 'presensi']);
-Route::resource('siswa', SiswaController::class);

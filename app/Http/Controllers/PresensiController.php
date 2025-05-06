@@ -251,7 +251,7 @@ class PresensiController extends Controller
                 $absen->update(['waktu_pulang' => $currentTime]);
                 return response()->json(['status' => 'pulang', 'message' => 'Berhasil Absen  Pulang', 'data' => $absen], 201);
             } else {
-                return response()->json(['message' => 'Belum waktunya  pulang.'], 422);
+                return response()->json(['message' => 'Belum waktunya pulang.'], 422);
             }
         } else {
             // Presensi datang jika belum dilakukan
@@ -289,8 +289,7 @@ class PresensiController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'image'      => 'required|image|mimes: jpeg,png,jpg,gif,svg|max: 2048',
-            'deskripsi'  => 'required',
-            'keterangan' => 'required|in:sakit,izin',
+            'jenis_izin' => 'required|in:sakit,izin',
         ]);
         if ($validator->fails()) {
             return response()->json(['message' => 'invalid field', 'error' => $validator->errors()], 422);
@@ -318,46 +317,20 @@ class PresensiController extends Controller
             'siswa_id'   => $siswa_id,
             'image_id'   => $imageUpload->id,
             'tanggal'    => $tanggal,
-            'keterangan' => $request->keterangan,
-            'deskripsi'  => $request->deskripsi,
+            'jenis_izin' => $request->jenis_izin,
+            'deskripsi'  => $request->deskripsi,  // optional
             'status'     => 'pending'
         ]);
 
         $kehadiran = Kehadiran::create([
             'siswa_id'     => $siswa_id,
             'tanggal'      => $tanggal,
-            'keterangan'   => $request->keterangan,
+            'keterangan'   => $request->jenis_izin,
             'waktu_datang' => null,
             'waktu_pulang' => null,
         ]);
 
         return response()->json(['message' => 'Siswa Berhasil Izin', 'data' => $izin], 200);
-    }
-
-    public function accIzin($id)
-    {
-        $approve = Izin::where('id', $id)->where('status', 'pending')->first();
-        if ($approve) {
-            $approve->update(['status' => 'approve']);
-            return response()->json(['message' => 'Berhasil approve izin siswa ' . $approve->siswa->nama], 200);
-        } else if ($approve->status === 'approve') {
-            return response()->json(['message' => 'izin siswa sudah approve'], 401);
-        } else {
-            return response()->json(['message' => 'Data tidak ditemukan'], 404);
-        }
-    }
-
-    public function accDispen($id)
-    {
-        $approve = Dispen::where('id', $id)->where('status', 'pending')->first();
-        if ($approve) {
-            $approve->update(['status' => 'approve']);
-            return response()->json(['message' => 'Berhasil approve dispen siswa ' . $approve->siswa->nama], 200);
-        } else if ($approve->status === 'approve') {
-            return response()->json(['message' => 'izin siswa sudah approve'], 401);
-        } else {
-            return response()->json(['message' => 'Data tidak ditemukan'], 404);
-        }
     }
 
     public function reqDispen(Request $request)
@@ -373,10 +346,14 @@ class PresensiController extends Controller
         $siswa_id = Auth::user()->siswa_id;
         $tanggal = Carbon::now()->format('Y-m-d');
 
+        if ($siswa_id == null) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        }
+
         $existingDispen = Dispen::where('siswa_id', $siswa_id)->whereDate('tanggal', $tanggal)->first();
         if ($existingDispen) {
             return $this->fail('Anda hanya dapat mengajukan dispen satu kali per hari', 400);
-        }
+        };
 
         $image = $request->file('image');
         $fileName = time() . '_' . $image->getClientOriginalName();
@@ -395,6 +372,61 @@ class PresensiController extends Controller
         ]);
 
         return response()->json(['message' => 'Berhasil request dispen tunggu approval dari wali kelas'], 200);
+    }
+
+    public function accIzin($id)
+    {
+        $izin = Izin::with('siswa')->find($id);
+
+        if (!$izin) {
+            return response()->json(['message' => 'Data izin tidak ditemukan'], 404);
+        }
+
+        if ($izin->status === 'approve') {
+            return response()->json(['message' => 'Izin siswa sudah di-approve sebelumnya'], 400);
+        }
+
+        if ($izin->status !== 'pending') {
+            return response()->json(['message' => 'Status izin tidak valid untuk di-approve'], 400);
+        }
+
+        $izin->update(['status' => 'approve']);
+
+        return response()->json([
+            'message' => 'Berhasil approve izin siswa ' . $izin->siswa->nama,
+            'data' => $izin
+        ], 200);
+    }
+
+    public function accDispen($id)
+    {
+        $approve = Dispen::with('siswa')->find($id);
+        if (!$approve) {
+            return response()->json(['message' => 'Data dispen tidak ditemukan'], 404);
+        }
+
+        if ($approve->status === 'approve') {
+            return response()->json(['message' => 'Dispen siswa sudah di-approve sebelumnya'], 400);
+        }
+
+        if ($approve->status !== 'pending') {
+            return response()->json(['message' => 'Status dispen tidak valid untuk di-approve'], 400);
+        }
+
+        $approve->update(['status' => 'approve']);
+        return response()->json([
+            'message' => 'Berhasil approve dispen siswa ' . $approve->siswa->nama,
+            'data' => $approve
+        ], 200);
+        // if ($approve) {
+        //     $approve->update(['status' => 'approve']);
+        //     return response()->json(['message' => 'Berhasil approve dispen siswa ' . $approve->siswa->nama], 200);
+        // } else if ($approve->status === 'approve') {
+        //     return response()->json(['message' => 'izin siswa sudah approve'], 401);
+        // } else {
+        //     return response()->json(['message' => 'Data tidak ditemukan'], 404);
+        // }
+
     }
 
     public function checkAbsen()
