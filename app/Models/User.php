@@ -25,7 +25,7 @@ class User extends Authenticatable
         'password',
     ];
 
-    protected $with = ['siswa'];
+    protected $with = ['siswa', 'guru'];
 
     public function guru()
     {

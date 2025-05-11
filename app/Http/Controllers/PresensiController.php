@@ -31,7 +31,7 @@ class PresensiController extends Controller
             return response()->json(['message' => 'Tidak ada siswa di kelas ini'], 404);
         }
 
-        $tanggal = Carbon::now()->format('Y-m-d');
+        $tanggal = Carbon::now()->timezone('Asia/Jakarta')->format('Y-m-d');
         $waktuSekarang = Carbon::now();
 
         // Ambil data kehadiran berdasarkan siswa di kelas tersebut dan tanggal saat ini
@@ -92,9 +92,6 @@ class PresensiController extends Controller
             'data' => $kehadiran
         ]);
     }
-
-
-
 
     public function getPresensiSiswa(Request $request)
     {
@@ -206,7 +203,7 @@ class PresensiController extends Controller
         $startDate = now()->startOfMonth();
         $endDate = now()->endOfMonth();
 
-        $data = Izin::where('siswa_id', $siswa_id)->where('keterangan', 'izin')->whereBetween('tanggal', [$startDate, $endDate])->get();
+        $data = Izin::where('siswa_id', $siswa_id)->where('jenis_izin', 'izin')->whereBetween('tanggal', [$startDate, $endDate])->get();
         return $this->success($data);
     }
 
@@ -216,30 +213,124 @@ class PresensiController extends Controller
         $startDate = now()->startOfMonth();
         $endDate = now()->endOfMonth();
 
-        $data = Izin::where('siswa_id', $siswa_id)->where('keterangan', 'sakit')->whereBetween('tanggal', [$startDate, $endDate])->get();
+        $data = Izin::where('siswa_id', $siswa_id)->where('jenis_izin', 'sakit')->whereBetween('tanggal', [$startDate, $endDate])->get();
         return $this->success($data);
     }
 
+    // Old code for presensi
+    // public function presensi(Request $request)
+    // {
+    //     $currentTime = Carbon::now('Asia/Jakarta');
+    //     $tanggalFormatted = $currentTime->format('Y-m-d');
+    //     $waktuPulang = Carbon::parse('10:00:00', 'Asia/Jakarta');
+    //     $batasWaktuDatang = Carbon::parse('07:00:00', 'Asia/Jakarta');
+
+    //     // Cek apakah ada input RFID, gunakan untuk mencari siswa
+    //     if ($request->has('rfid')) {
+    //         $siswa = Siswa::where('rfid_code', $request->rfid)->first();
+    //         if (!$siswa) {
+    //             return response()->json(['message' => 'RFID tidak valid'], 404);
+    //         }
+    //         $siswa_id = $siswa->id;
+    //     } else {
+    //         // Jika tidak ada RFID, gunakan ID dari akun yang login
+    //         $siswa_id = Auth::user()->siswa_id;
+    //     }
+
+    //     // Periksa apakah siswa sudah melakukan presensi hari ini
+    //     $absen = Kehadiran::where('siswa_id', $siswa_id)
+    //         ->where('tanggal', $tanggalFormatted)
+    //         ->first();
+
+    //     if ($absen) {
+    //         if ($absen->waktu_pulang) {
+    //             return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 422);
+    //         } elseif ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
+    //             $absen->update(['waktu_pulang' => $currentTime]);
+    //             return response()->json(['status' => 'pulang', 'message' => 'Berhasil Absen  Pulang', 'data' => $absen], 201);
+    //         } else {
+    //             return response()->json(['message' => 'Belum waktunya pulang.'], 422);
+    //         }
+    //     } else {
+    //         // Presensi datang jika belum dilakukan
+    //         $keterangan = $currentTime->greaterThanOrEqualTo($batasWaktuDatang) ? 'telat' : 'hadir';
+    //         $absen = Kehadiran::create([
+    //             'siswa_id' => $siswa_id,
+    //             'tanggal' => $tanggalFormatted,
+    //             'keterangan' => $keterangan,
+    //             'waktu_datang' => $currentTime,
+    //         ]);
+    //         return response()->json(['status' => 'datang', 'message' => 'Berhasil Absen  Datang', 'data' => $absen], 200);
+    //     }
+
+    //     // Setelah jam pulang, tetapkan siswa yang belum absen sebagai alpha
+    //     if ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
+    //         $siswaBelumAbsen = Siswa::whereNotIn('id', function ($query) use ($tanggalFormatted) {
+    //             $query->select('siswa_id')
+    //                 ->from('kehadiran')
+    //                 ->where('tanggal', $tanggalFormatted);
+    //         })->get();
+
+    //         foreach ($siswaBelumAbsen as $siswa) {
+    //             Kehadiran::create([
+    //                 'siswa_id' => $siswa->id,
+    //                 'tanggal' => $tanggalFormatted,
+    //                 'keterangan' => 'alpha',
+    //                 'waktu_datang' => null,
+    //                 'waktu_pulang' => null,
+    //             ]);
+    //         }
+    //     }
+    // }
+
+    // new code for presensi
     public function presensi(Request $request)
     {
         $currentTime = Carbon::now('Asia/Jakarta');
         $tanggalFormatted = $currentTime->format('Y-m-d');
-        $waktuPulang = Carbon::parse('10:00:00', 'Asia/Jakarta');
+        $waktuPulang = Carbon::parse('15:00:00', 'Asia/Jakarta');
         $batasWaktuDatang = Carbon::parse('07:00:00', 'Asia/Jakarta');
 
-        // Cek apakah ada input RFID, gunakan untuk mencari siswa
+        // Initialize class-based student data caching
+        static $classStudents = null;
+        static $classStudentsLoaded = false;
+
+        // Check if we're initiating class attendance (teacher mode)
+        if ($request->has('kelas_id') && !$classStudentsLoaded) {
+            $classStudents = Siswa::where('kelas_id', $request->kelas_id)
+                ->with('kelas')
+                ->get()
+                ->keyBy('rfid_code'); // Index by RFID for faster lookup
+
+            $classStudentsLoaded = true;
+
+            // Return the list of students (for teacher UI) without processing attendance
+            return response()->json([
+                'message' => 'Daftar siswa siap untuk presensi',
+                'siswa' => $classStudents,
+                'kelas' => $classStudents->first()->kelas->nama ?? null
+            ], 200);
+        }
+
+        // Process RFID attendance
         if ($request->has('rfid')) {
-            $siswa = Siswa::where('rfid_code', $request->rfid)->first();
-            if (!$siswa) {
-                return response()->json(['message' => 'RFID tidak valid'], 404);
+            // Use preloaded students if available, otherwise fallback to database query
+            if ($classStudents && $classStudents->has($request->rfid)) {
+                $siswa = $classStudents[$request->rfid];
+            } else {
+                $siswa = Siswa::where('rfid_code', $request->rfid)->first();
+                if (!$siswa) {
+                    return response()->json(['message' => 'RFID tidak valid'], 404);
+                }
             }
+
             $siswa_id = $siswa->id;
         } else {
-            // Jika tidak ada RFID, gunakan ID dari akun yang login
+            // If no RFID, use ID from logged in account
             $siswa_id = Auth::user()->siswa_id;
         }
 
-        // Periksa apakah siswa sudah melakukan presensi hari ini
+        // Check if student already has attendance record today
         $absen = Kehadiran::where('siswa_id', $siswa_id)
             ->where('tanggal', $tanggalFormatted)
             ->first();
@@ -249,12 +340,17 @@ class PresensiController extends Controller
                 return response()->json(['message' => 'Anda sudah absen pulang hari ini.'], 422);
             } elseif ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
                 $absen->update(['waktu_pulang' => $currentTime]);
-                return response()->json(['status' => 'pulang', 'message' => 'Berhasil Absen  Pulang', 'data' => $absen], 201);
+                return response()->json([
+                    'status' => 'pulang',
+                    'message' => 'Berhasil Absen Pulang',
+                    'data' => $absen,
+                    'siswa' => $siswa
+                ], 201);
             } else {
                 return response()->json(['message' => 'Belum waktunya pulang.'], 422);
             }
         } else {
-            // Presensi datang jika belum dilakukan
+            // First attendance of the day
             $keterangan = $currentTime->greaterThanOrEqualTo($batasWaktuDatang) ? 'telat' : 'hadir';
             $absen = Kehadiran::create([
                 'siswa_id' => $siswa_id,
@@ -262,10 +358,16 @@ class PresensiController extends Controller
                 'keterangan' => $keterangan,
                 'waktu_datang' => $currentTime,
             ]);
-            return response()->json(['status' => 'datang', 'message' => 'Berhasil Absen  Datang', 'data' => $absen], 200);
+
+            return response()->json([
+                'status' => 'datang',
+                'message' => 'Berhasil Absen Datang',
+                'data' => $absen,
+                'siswa' => $siswa
+            ], 200);
         }
 
-        // Setelah jam pulang, tetapkan siswa yang belum absen sebagai alpha
+        // Mark absent students as alpha after school hours
         if ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
             $siswaBelumAbsen = Siswa::whereNotIn('id', function ($query) use ($tanggalFormatted) {
                 $query->select('siswa_id')
@@ -285,6 +387,81 @@ class PresensiController extends Controller
         }
     }
 
+    // Face recognition
+    //  public function presensi(Request $request)
+    // {
+    //     $currentTime = Carbon::now('Asia/Jakarta');
+    //     $tanggalFormatted = $currentTime->format('Y-m-d');
+    //     $waktuPulang = Carbon::parse('15:00:00', 'Asia/Jakarta');
+    //     $batasWaktuDatang = Carbon::parse('05:00:00', 'Asia/Jakarta');
+
+    //     // Validate face recognition data
+    //     $request->validate([
+    //         'nama_siswa' => 'required|string',
+    //         'kelas_id' => 'required|integer'
+    //     ]);
+
+    //     // Find student by name and class
+    //     $siswa = Siswa::where('nama', $request->nama_siswa)
+    //                  ->where('kelas_id', $request->kelas_id)
+    //                  ->first();
+
+    //     if (!$siswa) {
+    //         return response()->json([
+    //             'message' => 'Siswa tidak ditemukan',
+    //             'suggestions' => Siswa::where('nama', 'like', '%'.$request->nama_siswa.'%')
+    //                                 ->pluck('nama')
+    //         ], 404);
+    //     }
+
+    //     $siswa_id = $siswa->id;
+
+    //     // Check existing attendance
+    //     $absen = Kehadiran::where('siswa_id', $siswa_id)
+    //                      ->where('tanggal', $tanggalFormatted)
+    //                      ->first();
+
+    //     if ($absen) {
+    //         if ($absen->waktu_pulang) {
+    //             return response()->json([
+    //                 'status' => 'already_done',
+    //                 'message' => 'Anda sudah absen pulang hari ini'
+    //             ], 422);
+    //         } elseif ($currentTime->greaterThanOrEqualTo($waktuPulang)) {
+    //             $absen->update(['waktu_pulang' => $currentTime]);
+    //             return response()->json([
+    //                 'status' => 'pulang',
+    //                 'message' => 'Berhasil Absen Pulang',
+    //                 'data' => $absen,
+    //                 'siswa' => $siswa
+    //             ], 200);
+    //         } else {
+    //             return response()->json([
+    //                 'status' => 'too_early',
+    //                 'message' => 'Belum waktunya pulang'
+    //             ], 422);
+    //         }
+    //     } else {
+    //         // First attendance of the day
+    //         $keterangan = $currentTime->greaterThanOrEqualTo($batasWaktuDatang) ? 'telat' : 'hadir';
+
+    //         $absen = Kehadiran::create([
+    //             'siswa_id' => $siswa_id,
+    //             'tanggal' => $tanggalFormatted,
+    //             'keterangan' => $keterangan,
+    //             'waktu_datang' => $currentTime,
+    //             'metode' => 'face_recognition'
+    //         ]);
+
+    //         return response()->json([
+    //             'status' => 'datang',
+    //             'message' => 'Berhasil Absen Datang',
+    //             'data' => $absen,
+    //             'siswa' => $siswa
+    //         ], 200);
+    //     }
+    // }
+
     public function reqIzin(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -296,7 +473,7 @@ class PresensiController extends Controller
         }
 
         $siswa_id = Auth::user()->siswa_id;
-        $tanggal = Carbon::now()->format('Y-m-d');
+        $tanggal = Carbon::now()->timezone('Asia/Jakarta')->format('Y-m-d');
 
         $existingIzin = Izin::where('siswa_id', $siswa_id)->whereDate('tanggal', $tanggal)->first();
         if ($existingIzin) {
@@ -306,7 +483,6 @@ class PresensiController extends Controller
         $image = $request->file('image');
         $fileName = time() . '_' . $image->getClientOriginalName();
         $filePath = $image->storeAs('uploads', $fileName, 'public');
-        $tanggal = Carbon::now();
 
         $imageUpload = Image::create([
             'file_name' => $fileName,
@@ -344,7 +520,7 @@ class PresensiController extends Controller
         }
 
         $siswa_id = Auth::user()->siswa_id;
-        $tanggal = Carbon::now()->format('Y-m-d');
+        $tanggal = Carbon::now()->timezone('Asia/Jakarta')->format('Y-m-d');
 
         if ($siswa_id == null) {
             return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
@@ -418,34 +594,48 @@ class PresensiController extends Controller
             'message' => 'Berhasil approve dispen siswa ' . $approve->siswa->nama,
             'data' => $approve
         ], 200);
-        // if ($approve) {
-        //     $approve->update(['status' => 'approve']);
-        //     return response()->json(['message' => 'Berhasil approve dispen siswa ' . $approve->siswa->nama], 200);
-        // } else if ($approve->status === 'approve') {
-        //     return response()->json(['message' => 'izin siswa sudah approve'], 401);
-        // } else {
-        //     return response()->json(['message' => 'Data tidak ditemukan'], 404);
-        // }
-
     }
 
     public function checkAbsen()
     {
-        $siswa_id = Auth::user()->siswa_id;
-        $tanggal = Carbon::now()->startOfDay()->format('Y-m-d');
-        // var_dump($tanggal);
-        $absen = Kehadiran::where('siswa_id', $siswa_id)->whereDate('tanggal', "=", $tanggal)->first();
+        // Pastikan user adalah siswa dan memiliki siswa_id
+        if (!Auth::check() || !Auth::user()->siswa_id) {
+            return response()->json(['message' => 'Siswa tidak ditemukan'], 404);
+        }
 
-        // Jika sudah ada absen datang
+        $siswa_id = Auth::user()->siswa_id;
+        $tanggal = Carbon::now()->timezone('Asia/Jakarta')->startOfDay();
+        // Cari data kehadiran untuk siswa pada hari ini
+        $absen = Kehadiran::where('siswa_id', $siswa_id)
+            ->whereDate('tanggal', $tanggal)
+            ->first();
+
         if ($absen) {
-            // Cek apakah siswa sudah absen pulang
-            if ($absen->waktu_pulang !== null || $absen->keterangan === 'izin' || $absen->keterangan === 'dispen') {
-                return response()->json(['message' => 'Anda sudah absen pulang hari ini', 'status' => 'pulang'], 201);
+            // Jika sudah ada absen
+            if ($absen->waktu_pulang !== null) {
+                return response()->json([
+                    'message' => 'Anda sudah absen pulang hari ini',
+                    'status' => 'pulang',
+                    'data' => $absen
+                ], 200);
+            } elseif ($absen->keterangan === 'izin' || $absen->keterangan === 'dispen') {
+                return response()->json([
+                    'message' => 'Anda sudah mengajukan ' . $absen->keterangan . ' hari ini',
+                    'status' => $absen->keterangan,
+                    'data' => $absen
+                ], 200);
             } else {
-                return response()->json(['message' => 'Anda sudah absen datang hari ini', 'status' => 'datang'], 200);
+                return response()->json([
+                    'message' => 'Anda sudah absen datang hari ini',
+                    'status' => 'datang',
+                    'data' => $absen
+                ], 200);
             }
         } else {
-            return response()->json(['message' => 'Anda belum absen hari ini', 'status' => 'belum'], 202);
+            return response()->json([
+                'message' => 'Anda belum absen hari ini',
+                'status' => 'belum'
+            ], 200);
         }
     }
 }
